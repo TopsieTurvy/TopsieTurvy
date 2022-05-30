@@ -1,0 +1,290 @@
+### PEH Combined Pull and Analysis
+
+# Install/Load packages ----
+list.of.packages <- c("DBI", "svDialogs","odbc","tidyverse","readxl","magrittr","reshape2","tidyr","janitor","dplyr")
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages)
+
+purrr::walk(list.of.packages, ~library(package = .x, character.only = TRUE,
+                                       logical.return = TRUE,
+                                       warn.conflicts = FALSE))
+rm(list = ls()[grepl("packages", ls())])
+
+# Connect to CEDRS ----
+con <- dbConnect(odbc::odbc(), "CEDRS3_Read", timeout = 10)
+
+# Dialog prompts ----
+dlg_message(
+  "The next pop-up will ask that you choose an excel file.
+  \nPlease upload a file with the address of interest formatted as 
+        \nColumn 1 = Street Number, Column 2 = Street Name, Column 3 = City, and column 4 = Zip Code",
+  type = c("ok")
+)
+
+my_data <- read_excel(file.choose())
+
+my_data %<>% 
+  mutate_if(is.character, toupper) %>% 
+  mutate_if(is.character, trimws) %>% 
+  rename(StreetNumber = 1,
+         StreetName = 2,
+         City = 3,
+         Zipcode = 4)
+
+output_name <- trimws(dlgInput("Enter the priority population name or outbreak ID for file naming purposes", "")$res)
+
+#Fuzzy Match
+my_data$query <- ifelse(!is.na(my_data$StreetNumber) & !is.na(my_data$StreetName) & !is.na(my_data$City) & !is.na(my_data$Zipcode),
+                        paste0("(CHARINDEX('",my_data$StreetNumber,"', zDSI_AddressesByEvent.Address1)>0 AND CHARINDEX('",my_data$StreetName,"', zDSI_AddressesByEvent.Address1)>0 AND CHARINDEX('",my_data$City,"', zDSI_AddressesByEvent.City)>0 AND CHARINDEX('",my_data$Zipcode,"', zDSI_AddressesByEvent.ZipCode)>0)"),NA )
+
+
+#put or after every string query except the last one and string it all together
+my_data$rownumber <- 1:nrow(my_data)
+
+my_data$query <- ifelse(is.na(my_data$query),NA,
+                        ifelse(my_data$rownumber != nrow(my_data), paste0(my_data$query," or "),my_data$query))
+
+query_string <- ifelse(!is.na(my_data$query),my_data$query,"")
+query_string <- trimws(gsub("or ,","or",toString(query_string)))
+
+#if we were missing values and produced a NA it will remove the 'or' that got placed at the end
+query_string <- ifelse(endsWith(query_string,"or"),substr(query_string,1,nchar(query_string)-2),query_string)
+
+start_ob <- trimws(dlgInput("Enter a date in yyyy-mm-dd format. Cases created before this date will not be pulled. \n(press Cancel or ESC if omitted)", "")$res)
+end_ob <- trimws(dlgInput("Enter a date in yyyy-mm-dd format. Cases created after this date will not be pulled. \n(press Cancel or ESC if omitted)", "")$res)
+
+# Run Query ----
+result <- dbGetQuery(con, paste0("SELECT 
+        [SurveillanceFormBase].EventID
+       ,[zDSI_Events].ProfileID
+       ,[zDSI_Events].EventStatus
+       ,[zDSI_Events].OnsetDate
+       ,[GetProfiles].LastName
+       ,[GetProfiles].FirstName
+       ,[GetProfiles].BirthDate
+       ,[zDSI_Events].Outcome
+       ,[zDSI_Events].HospitalizedYesNo
+       ,[GetProfiles].Gender
+       ,[GetProfiles].EthnicityID
+       ,[GetProfileRaces].RaceID
+       ,[zDSI_AddressesByEvent].Address1
+       ,[zDSI_AddressesByEvent].Address2
+       ,[zDSI_AddressesByEvent].City
+       ,[zDSI_AddressesByEvent].StateAbbrev
+       ,[zDSI_AddressesByEvent].ZipCode
+       ,[zDSI_Events].CountyAssigned
+       ,[SurveillanceFormSymptoms].Symptoms
+       ,[SurveillanceFormSymptoms].Fever
+       ,[SurveillanceFormSymptoms].FeverChills
+       ,[SurveillanceFormSymptoms].AnyCough
+       ,[SurveillanceFormSymptoms].RunnyNose
+       ,[SurveillanceFormSymptoms].BodyAches
+       ,[SurveillanceFormSymptoms].SoreThroat
+       ,[SurveillanceFormSymptoms].Dyspnea
+       ,[SurveillanceFormSymptoms].Headache
+       ,[SurveillanceFormSymptoms].Diarrhea
+       ,[SurveillanceFormSymptoms].Vomiting
+       ,[SurveillanceFormSymptoms].AbdoPain
+       ,[SurveillanceFormSymptoms].TasteSmell
+       ,[SurveillanceFormSymptoms].Sweat
+       ,[SurveillanceFormSymptoms].Fatigue
+       ,[SurveillanceFormSymptoms].Wheezing
+       ,[SurveillanceFormSymptoms].DifficultyBreathing
+       ,[SurveillanceFormSymptoms].ChestPain
+       ,[SurveillanceFormSymptoms].Dehydration
+       ,[SurveillanceFormSymptoms].StuffNose
+       ,[SurveillanceFormSymptoms].Confusion
+       ,[SurveillanceFormSymptoms].Other
+       ,[SurveillanceFormSymptoms].OtherDesc
+       ,[SurveillanceFormCovid19].VaccineBreakthrough
+       ,[Events].OutbreakID
+       ,[Events].OutbreakName
+       ,[Events].LiveInInstitution
+       ,[Events].ExposureFacilityID
+       ,[Events].ExposureFacilityName
+       ,[Events].HomelessID
+       ,[Events].HomelessLivingInstitutionInfo
+       ,[Events].ShelterName
+       ,[Events].CorrectionalFacilityInfo
+       ,[Events].CorrectionalFacilityName
+       ,[Events].Reinfection
+       ,[Events].OutcomeID
+       ,[Events].HospitalAdmissionReasonID
+       ,[Events].HospitalAdmissionReasonOtherDesc
+       ,[Events].ICUAdmissionDate
+       ,[Events].ICUDischargeDate
+       ,[zDSI_Events].ReportedDate
+        FROM [CEDRS_III_Warehouse].[cedrs].[SurveillanceFormBase] INNER JOIN [CEDRS_III_Warehouse].[cedrs].[zDSI_Events]
+        ON [CEDRS_III_Warehouse].[cedrs].[SurveillanceFormBase].EventID = [CEDRS_III_Warehouse].[cedrs].[zDSI_Events].EventID
+        INNER JOIN [CEDRS_III_Warehouse].[cedrs].[GetProfiles]
+        ON [CEDRS_III_Warehouse].[cedrs].[zDSI_Events].ProfileID = [CEDRS_III_Warehouse].[cedrs].[GetProfiles].ProfileID
+        INNER JOIN [CEDRS_III_Warehouse].[cedrs].[GetProfileRaces]
+        ON [CEDRS_III_Warehouse].[cedrs].[zDSI_Events].ProfileID = [CEDRS_III_Warehouse].[cedrs].[GetProfileRaces].ProfileID
+        INNER JOIN [CEDRS_III_Warehouse].[cedrs].[zDSI_AddressesByEvent]
+        ON [CEDRS_III_Warehouse].[cedrs].[zDSI_AddressesByEvent].EventID = [CEDRS_III_Warehouse].[cedrs].[zDSI_Events].EventID
+        INNER JOIN [CEDRS_III_Warehouse].[cedrs].[SurveillanceFormSymptoms]
+        ON [CEDRS_III_Warehouse].[cedrs].[SurveillanceFormBase].FormBaseID = [CEDRS_III_Warehouse].[cedrs].[SurveillanceFormSymptoms].FormBaseID
+        INNER JOIN [CEDRS_III_Warehouse].[cedrs].[SurveillanceFormCovid19]
+        ON [CEDRS_III_Warehouse].[cedrs].[SurveillanceFormCovid19].EventID = [CEDRS_III_Warehouse].[cedrs].[zDSI_Events].EventID
+        INNER JOIN [CEDRS_III_Warehouse].[cedrs].[Events]
+        ON [CEDRS_III_Warehouse].[cedrs].[Events].EventID = [CEDRS_III_Warehouse].[cedrs].[zDSI_Events].EventID
+        
+        WHERE (zDSI_Events.Deleted = 'FALSE' AND (COALESCE(zDSI_Events.OnsetDate,zDSI_Events.Reporteddate) >= ',start_ob,' 
+                                 AND COALESCE(zDSI_Events.OnsetDate,zDSI_Events.Reporteddate) <= ',end_ob,') 
+                                 AND [SurveillanceFormBase].DiseaseID = '159' 
+                                 AND [zDSI_Events].CountyAssigned = 'Denver, CO')
+                                 IN ('",query_string,"',
+                                 CHARINDEX('HOMELESS',[zDSI_AddressesByEvent].Address1)>0, CHARINDEX('HOMELESS',[zDSI_AddressesByEvent].Address2)>0, 
+                                 CHARINDEX('UNHOUSED',[zDSI_AddressesByEvent].Address1)>0, CHARINDEX('UNHOUSED',[zDSI_AddressesByEvent].Address2)>0,
+                                 [Events].HomelessID = '121');
+
+
+        
+        # Codebooks ----
+        codebook.eth <- dbGetQuery(con,"SELECT *
+                                   FROM [CEDRS_III_Warehouse].[lookups].[GetEthnicity]")
+        codebook.race <- dbGetQuery(con,"SELECT *
+                                   FROM [CEDRS_III_Warehouse].[lookups].[GetRace]")
+        codebook.yesno <- dbGetQuery(con,"SELECT *
+                                   FROM [CEDRS_III_Warehouse].[lookups].[GetYesNoUnknownID]")
+        codebook.exposure <- dbGetQuery(con, "SELECT * 
+                                   FROM [CEDRS_III_Warehouse].[Lookups].[GetInstitutionTypes]")
+        codebook.outcome <- dbGetQuery(con, "SELECT *
+                                   FROM [CEDRS_III_Warehouse].[Lookups].[GetAliveStatus]")
+        codebook.hospital <- dbGetQuery(con, "SELECT * 
+                                   FROM [CEDRS_III_Warehouse].[Lookups].[Codes]")
+        
+        # Formatting Values ----
+        
+        
+        #Exposure Facility
+        ExposureFacilityID <- codebook.exposure$InstitutionTypeID
+        ExposureLabel <- codebook.exposure$InstitutionType
+        result$ExposureFacilityID <- ordered(result$ExposureFacilityID, levels = ExposureFacilityID, labels = ExposureLabel)
+        
+        
+        #Race
+        RaceID <-  codebook.race$RaceID
+        RaceLabel <-  codebook.race$Race
+        result$RaceID <-  ordered(result$RaceID, levels = RaceID, labels = RaceLabel)
+        
+        #Ethnicity 
+        EthID <- codebook.eth$EthnicityID
+        EthLabel <- codebook.eth$Ethnicity
+        result$EthnicityID <- ordered(result$EthnicityID, levels = EthID, labels = EthLabel)
+        
+        #OutbreakID
+        OutbreakID <- codebook.yesno$YesNoUnknownID
+        OutbreakLabel <- codebook.yesno$YesNoUnknown
+        result$OutbreakID <- ordered(result$OutbreakID, levels = OutbreakID, labels = OutbreakLabel)
+        
+        #Live In Institution
+        InstitutionID <- codebook.yesno$YesNoUnknownID
+        InstitutionLabel <- codebook.yesno$YesNoUnknown
+        result$LiveInInstitution <- ordered(result$LiveInInstitution, levels = InstitutionID, labels = InstitutionLabel)
+        
+        #HomelessID
+        HomelessID <- codebook.yesno$YesNoUnknownID
+        HomelessLabel <- codebook.yesno$YesNoUnknown
+        result$HomelessID <- ordered(result$HomelessID, levels = HomelessID, labels = HomelessLabel)
+        
+        #Outcome
+        OutcomeID <- codebook.outcome$AliveStatusID
+        OutcomeLabel <- codebook.outcome$AliveStatus
+        result$OutcomeID <- ordered(result$OutcomeID, levels = OutcomeID, labels = OutcomeLabel)
+        
+        #Hospital Admit Reason
+        HospitalAdmissionReasonID <- codebook.hospital$CodeID
+        HospitalAdmissionReasonLabel <- codebook.hospital$ConceptName
+        result$HospitalAdmissionReasonID <- ordered(result$HospitalAdmissionReasonID, levels = HospitalAdmissionReasonID, labels = HospitalAdmissionReasonLabel)
+        
+        # Symptom String ----
+        #YesNo
+        yesnoID <- codebook.yesno$YesNoUnknownID
+        yesnoLabel <- codebook.yesno$YesNoUnknown
+        
+        #Pull Race
+        
+        race <- result %>% select(EventID,RaceID) %>% filter(!is.na(RaceID)) %>% 
+                mutate(EventID = as.character(EventID))
+        
+        if(nrow(race) != 0){
+                race <- race[duplicated(race$EventID) | duplicated(race$EventID, fromLast = TRUE),]
+                if(nrow(race) != 0){
+                        race <- dcast(race,EventID ~ RaceID)  
+                        
+                        
+                        race$Race <- ""
+                        if(isTRUE("White" %in% colnames(race))){
+                                race$Race <- case_when(race$White == "White" ~ paste0(race$Race,"White, "),TRUE ~ race$Race) 
+                        }
+                        if(isTRUE("Asian" %in% colnames(race))){
+                                race$Race <- case_when(race$Asian == "Asian" ~ paste0(race$Race,"Asian, "),TRUE ~ race$Race)
+                        }
+                        if(isTRUE("Black or African American" %in% colnames(race))){
+                                race$Race <- case_when(race$`Black or African American` == "Black or African American" ~ paste0(race$Race,"Black or African American, "),TRUE ~ race$Race)
+                        }
+                        if(isTRUE("American Indian or Alaska Native" %in% colnames(race))){
+                                race$Race <- case_when(race$`American Indian or Alaska Native` == "American Indian or Alaska Native" ~ paste0(race$Race,"American Indian or Alaska Native, "),TRUE ~ race$Race)
+                        }
+                        if(isTRUE("Native Hawaiian or Other Pacific Islander" %in% colnames(race))){
+                                race$Race <- case_when(race$`Native Hawaiian or Other Pacific Islander` == "Native Hawaiian or Other Pacific Islander" ~ paste0(race$Race,"Native Hawaiian or Other Pacific Islander, "),TRUE ~ race$Race)
+                        }
+                        if(isTRUE("Other Race" %in% colnames(race))){
+                                race$Race <- case_when(race$`Other Race` == "Other Race" ~ paste0(race$Race,"Other Race, "),TRUE ~ race$Race)
+                        }
+                        race$Race <- ifelse(endsWith(race$Race,", "),substr(race$Race,1,nchar(race$Race)-2),race$Race)
+                        
+                        race %<>% select(EventID,Race)
+                        result$EventID <- as.character(result$EventID)
+                        race$EventID <- as.character(race$EventID)
+                        result %<>% distinct(EventID,.keep_all = T) 
+                        
+                        result <- left_join(result,race,by="EventID")
+                        result$RaceID <- as.character(result$RaceID)
+                        result$Race <- case_when(is.na(result$Race) ~ result$RaceID,
+                                                 TRUE ~ result$Race)
+                        result$RaceID <- NULL
+                        rm(race)
+                        
+                } else {
+                        rm(race)
+                        result$Race <- result$RaceID
+                        result$RaceID <- NULL          
+                }
+        }
+        
+        #setting missing values to unknown (120 in codebook)
+        is.na_replace_0 <- result[,18:39]
+        is.na_replace_0[is.na(is.na_replace_0)] <- 120
+        result[,18:39] <- is.na_replace_0
+        rm(is.na_replace_0)
+        
+        # replace values with codebook
+        FUN <- function(x) (ordered(x,levels = yesnoID,labels = yesnoLabel))
+        exp <- result[,18:39]
+        result[,18:39] <- sapply(exp,FUN)
+        
+       
+        
+        # Compile Address variable ----
+        result$Address <- paste0(result$Address1," ",result$City,", ",result$StateAbbrev," ",result$ZipCode)
+        result[,12:16] <- NULL
+        
+        
+        
+        # Prep for Printing ----
+        
+        # Turn NAs to blanks
+        result$OnsetDate <- as.character(result$OnsetDate)
+        result$EthnicityID <- as.character(result$EthnicityID)
+        result$Race <- as.character(result$Race)
+        result[is.na(result)] <- ""
+        
+        # Rename variables
+        result %<>% rename(CaseStatus = EventStatus,
+                           Ethnicity = EthnicityID,
+                           Symptoms = SymptomString,
+                           Hospitalized = HospitalizedYesNo) 
+
+
