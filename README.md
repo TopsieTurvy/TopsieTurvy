@@ -3,7 +3,7 @@
 [![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)]([https://www.linkedin.com/in/your-linkedin-profile](https://www.linkedin.com/in/nicolebrightmph))
 
 **Happy to have you here!**  
-I am an epidemiologist with a passion for data science. In my current role, I utilize RStudio, Tableau, SQL, and SAS to gain insight into the world of communicable diseases. I enjoy learning new programs and taking on creative projects. I feel fortunate to have the opportunity to share my passion for coding with fellow programmers through weekly lessons I provide to coworkers. Check out my teaching repository for some sample code from those lessons!
+I am an epidemiologist with a passion for data science. In my current role, I utilize RStudio, Tableau, and SQL to gain insight into the world of communicable diseases. I enjoy learning new programs and taking on creative projects. I feel fortunate to have the opportunity to share my passion for coding with fellow programmers through weekly lessons I provide to coworkers. Check out my teaching repository for some sample code from those lessons!
 
 **My skills include**  
 [![RStudio](https://img.shields.io/badge/RStudio-75AADB?style=for-the-badge&logo=RStudio&logoColor=white)](https://www.r-project.org/)
