@@ -1,12 +1,35 @@
-# 👋 Hello, I’m @TopsieTurvy!  
+# 👋 Hello, I’m @TopsieTurvy
 
-[![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/nicoleturveymph)
+Welcome to **The Data Grove** 🌿  
+I’m a public health data scientist and epidemiologist with a deep-rooted passion for analytics, storytelling, and systems thinking. I’ve spent the past 5+ years helping my team—and our data—bloom.
 
-**Happy to have you here!**  
-I am an epidemiologist with a passion for data science. In my current role, I utilize RStudio, Tableau, and SQL to gain insight into the world of communicable diseases. I enjoy learning new programs and taking on creative projects. I feel fortunate to have the opportunity to share my passion for coding with fellow programmers through weekly lessons I provide to coworkers. Check out my teaching repository for some sample code from those lessons!
+In my current role, I use tools like **RStudio**, **Tableau**, and **SQL** to uncover insights from hospitalization, surveillance, and outbreak data. But the work I’m most proud of? Building a learning community. I teach weekly R lessons to colleagues, empowering analysts across our agency to grow their coding skills and explore data with confidence.
 
-**My skills include**  
-[![RStudio](https://img.shields.io/badge/RStudio-75AADB?style=for-the-badge&logo=RStudio&logoColor=white)](https://www.r-project.org/)
-[![Tableau](https://img.shields.io/badge/Tableau-E97627?style=for-the-badge&logo=Tableau&logoColor=white)](https://www.tableau.com)
-[![SQL Management Studio](https://img.shields.io/badge/SQL_Management_Studio-CC2927?style=for-the-badge&logo=Microsoft%20SQL%20Server&logoColor=white)](https://docs.microsoft.com/en-us/sql/ssms/sql-server-management-studio-ssms)
+Check out [📘 The Data Grove](#) for open-source curriculum, demos, and mini-projects from those sessions.
+
+---
+
+## 🔧 Skills & Tools
+
+<p align="left">
+  <img src="https://img.shields.io/badge/RStudio-566646?style=for-the-badge&logo=RStudio&logoColor=white" alt="RStudio">
+  <img src="https://img.shields.io/badge/Tableau-b8b382?style=for-the-badge&logo=Tableau&logoColor=white" alt="Tableau">
+  <img src="https://img.shields.io/badge/SQL-806644?style=for-the-badge&logo=Microsoft%20SQL%20Server&logoColor=white" alt="SQL">
+  <img src="https://img.shields.io/badge/Git-74a48a?style=for-the-badge&logo=git&logoColor=white" alt="Git">
+  <img src="https://img.shields.io/badge/BigQuery-919c79?style=for-the-badge&logo=Google%20Cloud&logoColor=white" alt="BigQuery">
+</p>
+
+---
+
+## 🔗 Let’s Connect
+
+<p align="left">
+  <a href="https://www.linkedin.com/in/nicoleturveymph">
+    <img src="https://img.shields.io/badge/LinkedIn-74a48a?style=for-the-badge&logo=linkedin&logoColor=white" alt="LinkedIn">
+  </a>
+</p>
+
+---
+
+> 🌿 _"The Data Grove -- Where your learning journey blooms."_
 
